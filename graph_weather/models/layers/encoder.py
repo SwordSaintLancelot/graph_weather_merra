@@ -38,7 +38,7 @@ class Encoder(torch.nn.Module):
     def __init__(
         self,
         lat_lons: list,
-        resolution: int = 2,
+        resolution: int = 5,
         input_dim: int = 78,
         output_dim: int = 256,
         output_edge_dim: int = 256,
@@ -70,9 +70,9 @@ class Encoder(torch.nn.Module):
         self.use_checkpointing = use_checkpointing
         self.output_dim = output_dim
         self.num_latlons = len(lat_lons)
-        self.base_h3_grid = sorted(list(h3.uncompact(h3.get_res0_indexes(), resolution)))
+        self.base_h3_grid = sorted(list(h3.uncompact(h3.get_res0_indexes(), resolution))) # Number of shapes the grid is divided into.
         self.base_h3_map = {h_i: i for i, h_i in enumerate(self.base_h3_grid)}
-        self.h3_grid = [h3.geo_to_h3(lat, lon, resolution) for lat, lon in lat_lons]
+        self.h3_grid = [h3.geo_to_h3(lat, lon, resolution) for lat, lon in lat_lons] # Mapping the base H3 grid to the latitude and longitudes of our input data
         self.h3_mapping = {}
         h_index = len(self.base_h3_grid)
         for h in self.base_h3_grid:

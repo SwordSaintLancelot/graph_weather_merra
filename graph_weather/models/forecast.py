@@ -35,8 +35,12 @@ class GraphWeatherForecaster(torch.nn.Module, PyTorchModelHubMixin):
         Args:
             lat_lons: List of latitude and longitudes for the grid
             resolution: Resolution of the H3 grid, prefer even resolutions, as
-                odd ones have octogons and heptagons as well
-            feature_dim: Input feature size
+                odd ones have octogons and heptagons as well.
+                H3 resolution number covers the entire world grid with different size hexagons.
+                It also means scaling the world grid up and down. resolution 2 means that the world grid is divided into 5882 hexagons
+                For more info read 
+                https://towardsdatascience.com/uber-h3-for-data-analysis-with-python-1e54acdcc908#:~:text=H3%20contains%20a%20total%20of,hexagons%20at%20the%20lowest%20layer.
+            feature_dim: Input feature size data (data variables with pressure levels)
             aux_dim: Number of non-NWP features (i.e. landsea mask, lat/lon, etc)
             output_dim: Optional, output feature size, useful if want only subset of variables in output
             node_dim: Node hidden dimension
@@ -60,7 +64,8 @@ class GraphWeatherForecaster(torch.nn.Module, PyTorchModelHubMixin):
         self.encoder = Encoder(
             lat_lons=lat_lons,
             resolution=resolution,
-            input_dim=feature_dim + aux_dim,
+            # input_dim=feature_dim + aux_dim,
+            input_dim=feature_dim,
             output_dim=node_dim,
             output_edge_dim=edge_dim,
             hidden_dim_processor_edge=hidden_dim_processor_edge,
