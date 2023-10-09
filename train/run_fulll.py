@@ -39,11 +39,11 @@ class XrDataset(Dataset):
         self.data = xr.open_dataset(file_name, engine="netcdf4")
 
     def __len__(self):
-        return len(self.data.time) - 2
+        return len(self.data.time) - 1
 
     def __getitem__(self, idx):
         # start_idx = np.random.randint(0, len(self.data.time) - 1)
-        data = self.data.isel(time=slice(idx, idx + 3))
+        data = self.data.isel(time=slice(idx, idx + 2))
 
         start = data.isel(time=0)
         end = data.isel(time=1)
@@ -86,6 +86,7 @@ class XrDataset(Dataset):
             .reshape(-1, input_data.shape[0]),
         )
 
+
 data = xr.open_dataset(
     "graph_weather/data/MERRA2_400.inst3_3d_asm_Nv.20230701_merged.nc",
     engine="netcdf4",
@@ -112,12 +113,15 @@ optimizer = optim.AdamW(model.parameters(), lr=0.001)
 print("Done Setup")
 import time
 
+train_files = glob("graph_weather/data/train_data/*.nc", recursive=True)
+val_files = glob("graph_weather/data/val_data/*.nc", recursive=True)
 
 for epoch in range(10):  # loop over the dataset multiple times
     model.train()
     start = time.time()
     running_loss = 0.0
-    for name in glob("graph_weather/data/train_data/*.nc", recursive=True):
+    running_val_loss = 0.0
+    for name in train_files[:3]:
         dataset = DataLoader(XrDataset(name), batch_size=1)
 
         # print(f"Start Epoch: {epoch+1}")
@@ -136,11 +140,10 @@ for epoch in range(10):  # loop over the dataset multiple times
 
             # print statistics
             running_loss += loss.item()
-            print(f"{epoch + 1} training_loss: {running_loss / (i + 1):.3f}")
+        print(f"{epoch + 1} training_loss: {running_loss / (i + 1):.3f}")
 
     model.eval()
-    for name in glob("graph_weather/data/val_data/*.nc", recursive=True):
-        running_val_loss = 0.0
+    for name in val_files[:3]:
         dataset = DataLoader(XrDataset(name), batch_size=1)
 
         # print(f"Start Epoch: {epoch+1}")
@@ -156,7 +159,7 @@ for epoch in range(10):  # loop over the dataset multiple times
             # print statistics
             running_val_loss += val_loss.item()
             # print(f"[{epoch + 1}, {i + 1:5d}] loss: {running_loss / (i + 1):.3f}")
-            print(f"{epoch + 1} validation_loss: {running_val_loss/(i+1):.3f}")
+        print(f"{epoch + 1} validation_loss: {running_val_loss/(i+1):.3f}")
 end = time.time()
 print(f"Time: {end - start} sec")
 # if epoch % 5 == 0:

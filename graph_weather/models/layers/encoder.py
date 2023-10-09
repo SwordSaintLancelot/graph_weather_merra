@@ -38,7 +38,7 @@ class Encoder(torch.nn.Module):
     def __init__(
         self,
         lat_lons: list,
-        resolution: int = 5,
+        resolution: int = 2,
         input_dim: int = 78,
         output_dim: int = 256,
         output_edge_dim: int = 256,
@@ -78,7 +78,7 @@ class Encoder(torch.nn.Module):
         for h in self.base_h3_grid:
             if h not in self.h3_mapping:
                 h_index -= 1
-                self.h3_mapping[h] = h_index + self.num_latlons
+                self.h3_mapping[h] = h_index + self.num_latlons # Why are we adding the index to the lat lons value?
         # Now have the h3 grid mapping, the bipartite graph of edges connecting lat/lon to h3 nodes
         # Should have vertical and horizontal difference
         self.h3_distances = []
@@ -86,7 +86,7 @@ class Encoder(torch.nn.Module):
             lat_lon = lat_lons[idx]
             distance = h3.point_dist(lat_lon, h3.h3_to_geo(h3_point), unit="rads")
             self.h3_distances.append([np.sin(distance), np.cos(distance)])
-        self.h3_distances = torch.tensor(self.h3_distances, dtype=torch.float)
+        self.h3_distances = torch.tensor(self.h3_distances, dtype=torch.float) # sine and cosine distance between each coordinate. shape = 207936 *2 
         # Compress to between 0 and 1
 
         # Build the default graph
@@ -211,10 +211,10 @@ class Encoder(torch.nn.Module):
         edge_targets = []
         edge_attrs = []
         for h3_index in self.base_h3_grid:
-            h_points = h3.k_ring(h3_index, 1)
+            h_points = h3.k_ring(h3_index, 1) # fetches the indices within the given distance
             for h in h_points:  # Already includes itself
                 distance = h3.point_dist(h3.h3_to_geo(h3_index), h3.h3_to_geo(h), unit="rads")
-                edge_attrs.append([np.sin(distance), np.cos(distance)])
+                edge_attrs.append([np.sin(distance), np.cos(distance)]) # sine and cosine distance of all the points within the given distance in previous lines.
                 edge_sources.append(self.base_h3_map[h3_index])
                 edge_targets.append(self.base_h3_map[h])
         edge_index = torch.tensor([edge_sources, edge_targets], dtype=torch.long)

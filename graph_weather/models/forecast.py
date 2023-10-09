@@ -13,7 +13,7 @@ class GraphWeatherForecaster(torch.nn.Module, PyTorchModelHubMixin):
     def __init__(
         self,
         lat_lons: list,
-        resolution: int = 2,
+        resolution: int = 3,
         feature_dim: int = 78,
         aux_dim: int = 24,
         output_dim: Optional[int] = None,
@@ -38,7 +38,7 @@ class GraphWeatherForecaster(torch.nn.Module, PyTorchModelHubMixin):
                 odd ones have octogons and heptagons as well.
                 H3 resolution number covers the entire world grid with different size hexagons.
                 It also means scaling the world grid up and down. resolution 2 means that the world grid is divided into 5882 hexagons
-                For more info read 
+                For more info read
                 https://towardsdatascience.com/uber-h3-for-data-analysis-with-python-1e54acdcc908#:~:text=H3%20contains%20a%20total%20of,hexagons%20at%20the%20lowest%20layer.
             feature_dim: Input feature size data (data variables with pressure levels)
             aux_dim: Number of non-NWP features (i.e. landsea mask, lat/lon, etc)
