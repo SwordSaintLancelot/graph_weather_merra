@@ -24,18 +24,6 @@ class XrDataset(Dataset):
     def __init__(self, file_name):
         super().__init__()
 
-        # self.filepaths = glob("graph_weather/data/202308/*.nc", recursive = True)
-        # with open("hf_forecasts.json", "r") as f:
-        #     files = json.load(f)
-        # self.filepaths = [
-        #     "zip:///::https://huggingface.co/datasets/openclimatefix/gfs-reforecast/resolve/main/"
-        #     + f
-        #     for f in files
-        # ]
-        # self.data = xr.open_mfdataset(
-        #     self.filepaths, concat_dim="time",
-        #     engine="netcdf4",combine = "nested")
-
         self.data = xr.open_dataset(file_name, engine="netcdf4")
 
     def __len__(self):
@@ -44,9 +32,22 @@ class XrDataset(Dataset):
     def __getitem__(self, idx):
         # start_idx = np.random.randint(0, len(self.data.time) - 1)
         data = self.data.isel(time=slice(idx, idx + 2))
-
         start = data.isel(time=0)
         end = data.isel(time=1)
+
+        # if inter_data is not None and start != inter_data:
+        #     start = inter_data
+        #     end = data.isel(time=0)
+        # elif start == inter_data:
+        #     start = data.isel(time = 0)
+        #     end = data.isel(time = 1)
+        # else:
+        #     start = data.isel(time=0)
+        #     try:
+        #         end = data.isel(time=1)
+        #     except IndexError:
+        #         inter_data = data.isel(time=0)
+
         # Stack the data into a large data cube
         input_data = np.stack(
             [
@@ -115,13 +116,14 @@ import time
 
 train_files = glob("graph_weather/data/train_data/*.nc", recursive=True)
 val_files = glob("graph_weather/data/val_data/*.nc", recursive=True)
-
-for epoch in range(10):  # loop over the dataset multiple times
+running_loss, running_val_loss = [], []
+for epoch in range(5):  # loop over the dataset multiple times
     model.train()
     start = time.time()
-    running_loss = 0.0
-    running_val_loss = 0.0
-    for name in train_files[:3]:
+    inter_data = None
+    running_loss_files = []
+    running_val_loss_files = []
+    for name in train_files:
         dataset = DataLoader(XrDataset(name), batch_size=1)
 
         # print(f"Start Epoch: {epoch+1}")
@@ -139,11 +141,11 @@ for epoch in range(10):  # loop over the dataset multiple times
             optimizer.step()
 
             # print statistics
-            running_loss += loss.item()
-        print(f"{epoch + 1} training_loss: {running_loss / (i + 1):.3f}")
+            running_loss_files.append(loss.item())
+        print(f"{epoch + 1} training_loss: {np.mean(running_loss_files)}")
 
     model.eval()
-    for name in val_files[:3]:
+    for name in val_files:
         dataset = DataLoader(XrDataset(name), batch_size=1)
 
         # print(f"Start Epoch: {epoch+1}")
@@ -157,11 +159,22 @@ for epoch in range(10):  # loop over the dataset multiple times
             val_loss = criterion(outputs, labels)
 
             # print statistics
-            running_val_loss += val_loss.item()
+            running_val_loss_files.append(val_loss.item())
             # print(f"[{epoch + 1}, {i + 1:5d}] loss: {running_loss / (i + 1):.3f}")
-        print(f"{epoch + 1} validation_loss: {running_val_loss/(i+1):.3f}")
+        print(f"{epoch + 1} validation_loss: {np.mean(running_val_loss_files)}")
+
+    running_loss.append(np.mean(running_loss_files))
+    running_val_loss.append(np.mean(running_val_loss_files))
 end = time.time()
 print(f"Time: {end - start} sec")
+plt.plot(running_loss)
+plt.plot(running_val_loss)
+plt.title("model accuracy")
+plt.ylabel("accuracy")
+plt.xlabel("epoch")
+plt.legend(["train", "val"], loc="upper left")
+plt.savefig("openweather_10epochs_merra_batch_2.png")
+plt.show()
 # if epoch % 5 == 0:
 #     assert not np.isnan(running_loss)
 #     model.push_to_hub(
@@ -177,27 +190,27 @@ for name in glob("graph_weather/data/test_data/*.nc", recursive=True):
     for i, data in tqdm(enumerate(dataset), total=len(dataset), leave=False):
         # get the inputs; data is a list of [inputs, labels]
         inputs_test, labels = data[0].to(device), data[1].to(device)
-        ax1[0][0].imshow(torch.reshape(inputs_test, (1, 361, 576, 65))[0, :, :, 0])
+        ax1[0][0].imshow(torch.reshape(inputs_test, (1, 361, 576, 65))[0, :, :, 27])
         ax1[0][0].set_title("Test Input Image")
 
-        ax1[0][1].imshow(torch.reshape(labels, (1, 361, 576, 65))[0, :, :, 0])
+        ax1[0][1].imshow(torch.reshape(labels, (1, 361, 576, 65))[0, :, :, 27])
         ax1[0][1].set_title("Test Output Image")
         # zero the parameter gradients
         # forward + backward + optimize
         outputs_test = model(inputs_test)
         ax1[1][0].imshow(
-            torch.reshape(outputs_test, (1, 361, 576, 65)).detach().numpy()[0, :, :, 0]
+            torch.reshape(outputs_test, (1, 361, 576, 65)).detach().numpy()[0, :, :, 27]
         )
         ax1[1][0].set_title("Predicted Image")
 
         diff_test = labels - outputs_test
 
         ax1[1][1].imshow(
-            torch.reshape(diff_test, (1, 361, 576, 65)).detach().numpy()[0, :, :, 0]
+            torch.reshape(diff_test, (1, 361, 576, 65)).detach().numpy()[0, :, :, 27]
         )
         ax1[1][1].set_title("Difference in actual output and prediction")
 
-        plt.savefig(f"results_{name}_{i}.png")
+        plt.savefig(f"results_{name.split('/')[-1][:-3]}_{i}_prediction.png")
 
 
 # for epoch in range(100):  # loop over the dataset multiple times
