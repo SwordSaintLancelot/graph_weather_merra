@@ -110,14 +110,14 @@ means = []
 # dataset = DataLoader(XrDataset(), batch_size=1)
 # files_dataloader = DataLoader(FileDataset("graph_weather/data/train_data"), batch_size = 1)
 model = GraphWeatherForecaster(lat_lons, feature_dim=65, num_blocks=6).to(device)
-optimizer = optim.AdamW(model.parameters(), lr=0.001)
+optimizer = optim.AdamW(model.parameters(), lr=0.000001)
 print("Done Setup")
 import time
 
 train_files = glob("graph_weather/data/train_data/*.nc", recursive=True)
 val_files = glob("graph_weather/data/val_data/*.nc", recursive=True)
 running_loss, running_val_loss = [], []
-for epoch in range(5):  # loop over the dataset multiple times
+for epoch in range(10):  # loop over the dataset multiple times
     model.train()
     start = time.time()
     inter_data = None
@@ -173,7 +173,7 @@ plt.title("model accuracy")
 plt.ylabel("accuracy")
 plt.xlabel("epoch")
 plt.legend(["train", "val"], loc="upper left")
-plt.savefig("openweather_10epochs_merra_batch_2.png")
+plt.savefig("openweather_20epochs_merra_batch_2.png")
 plt.show()
 # if epoch % 5 == 0:
 #     assert not np.isnan(running_loss)
