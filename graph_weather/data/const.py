@@ -2282,7 +2282,7 @@ FORECAST_DIFF_MEANS = {
     "WEASD.surface": 0.009397598914802074,
     "WILT.surface": -8.632069636860251e-08,
 }
-FORECAST_DIFF_STD = pd.read_csv("graph_weather/data/diff_stds_20231004.txt", header = None, delimiter = ":")
+FORECAST_DIFF_STD = pd.read_csv("../graph_weather/data/diff_stds_20231004.txt", header = None, delimiter = ":")
 FORECAST_DIFF_STD.set_index([0], drop = True, inplace = True)
 FORECAST_DIFF_STD = FORECAST_DIFF_STD.to_dict()[1]
 FORECAST_DIFF_MAX = {
