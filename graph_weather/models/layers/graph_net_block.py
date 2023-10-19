@@ -41,7 +41,8 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
         self.use_checkpointing = use_checkpointing
 
-        layers = [nn.Linear(in_dim, hidden_dim), nn.ReLU()]
+        layers = [nn.Conv2d(in_dim, hidden_dim, kernel_size=3), nn.MaxPool2d(2)]
+        layers += [nn.Linear(hidden_dim, hidden_dim), nn.ReLU()]
         for _ in range(hidden_layers - 1):
             layers += [nn.Linear(hidden_dim, hidden_dim), nn.ReLU()]
         layers.append(nn.Linear(hidden_dim, out_dim))
@@ -70,9 +71,13 @@ class MLP(nn.Module):
             The transformed tensor
         """
         if self.use_checkpointing:
-            out = checkpoint(self.model, x, use_reentrant=False)
+            out = checkpoint(
+                self.model, x.reshape(1, 361, 576, 65), use_reentrant=False
+            )
         else:
-            out = self.model(x)
+            print(x.shape)
+            out = self.model(x.reshape(1, 361, 576, 65))
+            print(x.shape)
         return out
 
 
@@ -108,11 +113,20 @@ class EdgeProcessor(nn.Module):
 
         super(EdgeProcessor, self).__init__()
         self.edge_mlp = MLP(
-            2 * in_dim_node + in_dim_edge, in_dim_edge, hidden_dim, hidden_layers, norm_type
+            2 * in_dim_node + in_dim_edge,
+            in_dim_edge,
+            hidden_dim,
+            hidden_layers,
+            norm_type,
         )
 
     def forward(
-        self, src: torch.Tensor, dest: torch.Tensor, edge_attr: torch.Tensor, u=None, batch=None
+        self,
+        src: torch.Tensor,
+        dest: torch.Tensor,
+        edge_attr: torch.Tensor,
+        u=None,
+        batch=None,
     ) -> torch.Tensor:
         """
         Compute the edge part of the message passing
@@ -165,7 +179,12 @@ class NodeProcessor(nn.Module):
         )
 
     def forward(
-        self, x: torch.Tensor, edge_index: torch.Tensor, edge_attr: torch.Tensor, u=None, batch=None
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_attr: torch.Tensor,
+        u=None,
+        batch=None,
     ) -> torch.Tensor:
         """
         Compute the node feature updates in message passing
