@@ -90,7 +90,7 @@ class XrDataset(Dataset):
 
 
 data = xr.open_dataset(
-    "/users/vgaur/graph_weather_merra/graph_weather/data/MERRA2_400.inst3_3d_asm_Nv.20230701_merged.nc",
+    "/Users/vgaur/graph_weather_merra/graph_weather/data/MERRA2_400.inst3_3d_asm_Nv.20230701_merged.nc",
     engine="netcdf4",
 )
 # print(data)
@@ -116,10 +116,10 @@ print("Done Setup")
 import time
 
 train_files = glob(
-    "users/vgaur/graph_weather_merra/graph_weather/data/train_data/*.nc", recursive=True
+    "/Users/vgaur/graph_weather_merragraph_weather/data/train_data/*.nc", recursive=True
 )
 val_files = glob(
-    "users/vgaur/graph_weather_merra/graph_weather/data/val_data/*.nc", recursive=True
+    "/Users/vgaur/graph_weather_merra/graph_weather/data/val_data/*.nc", recursive=True
 )
 running_loss, running_val_loss = [], []
 for epoch in range(20):  # loop over the dataset multiple times
