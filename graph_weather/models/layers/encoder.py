@@ -38,7 +38,7 @@ class Encoder(torch.nn.Module):
     def __init__(
         self,
         lat_lons: list,
-        resolution: int = 2,
+        resolution: int = 3,
         input_dim: int = 78,
         output_dim: int = 256,
         output_edge_dim: int = 256,
@@ -50,7 +50,7 @@ class Encoder(torch.nn.Module):
         use_checkpointing: bool = False,
     ):
         """
-        Encode the lat/lon data inot the isohedron graph
+        Encode the lat/lon data into the icosahedron graph
 
         Args:
             lat_lons: List of (lat,lon) points
@@ -70,15 +70,21 @@ class Encoder(torch.nn.Module):
         self.use_checkpointing = use_checkpointing
         self.output_dim = output_dim
         self.num_latlons = len(lat_lons)
-        self.base_h3_grid = sorted(list(h3.uncompact(h3.get_res0_indexes(), resolution))) # Number of shapes the grid is divided into.
+        self.base_h3_grid = sorted(
+            list(h3.uncompact(h3.get_res0_indexes(), resolution))
+        )  # Number of shapes the grid is divided into.
         self.base_h3_map = {h_i: i for i, h_i in enumerate(self.base_h3_grid)}
-        self.h3_grid = [h3.geo_to_h3(lat, lon, resolution) for lat, lon in lat_lons] # Mapping the base H3 grid to the latitude and longitudes of our input data
+        self.h3_grid = [
+            h3.geo_to_h3(lat, lon, resolution) for lat, lon in lat_lons
+        ]  # Mapping the H3 grid to the latitude and longitudes of our input data
         self.h3_mapping = {}
         h_index = len(self.base_h3_grid)
         for h in self.base_h3_grid:
             if h not in self.h3_mapping:
                 h_index -= 1
-                self.h3_mapping[h] = h_index + self.num_latlons # Why are we adding the index to the lat lons value?
+                self.h3_mapping[h] = (
+                    h_index + self.num_latlons
+                )  # Why are we adding the index to the lat lons value?
         # Now have the h3 grid mapping, the bipartite graph of edges connecting lat/lon to h3 nodes
         # Should have vertical and horizontal difference
         self.h3_distances = []
@@ -86,7 +92,9 @@ class Encoder(torch.nn.Module):
             lat_lon = lat_lons[idx]
             distance = h3.point_dist(lat_lon, h3.h3_to_geo(h3_point), unit="rads")
             self.h3_distances.append([np.sin(distance), np.cos(distance)])
-        self.h3_distances = torch.tensor(self.h3_distances, dtype=torch.float) # sine and cosine distance between each coordinate. shape = 207936 *2 
+        self.h3_distances = torch.tensor(
+            self.h3_distances, dtype=torch.float
+        )  # sine and cosine distance between each coordinate. shape = 207936 *2
         # Compress to between 0 and 1
 
         # Build the default graph
@@ -149,7 +157,9 @@ class Encoder(torch.nn.Module):
             mlp_norm_type,
         )
 
-    def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+        self, features: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Adds features to the encoding graph
 
@@ -164,12 +174,15 @@ class Encoder(torch.nn.Module):
         self.graph = self.graph.to(features.device)
         self.latent_graph = self.latent_graph.to(features.device)
         features = torch.cat(
-            [features, einops.repeat(self.h3_nodes, "n f -> b n f", b=batch_size)], dim=1
+            [features, einops.repeat(self.h3_nodes, "n f -> b n f", b=batch_size)],
+            dim=1,
         )
         # Cat with the h3 nodes to have correct amount of nodes, and in right order
         features = einops.rearrange(features, "b n f -> (b n) f")
         out = self.node_encoder(features)  # Encode to 256 from 78
-        edge_attr = self.edge_encoder(self.graph.edge_attr)  # Update attributes based on distance
+        edge_attr = self.edge_encoder(
+            self.graph.edge_attr
+        )  # Update attributes based on distance
         # Copy attributes batch times
         edge_attr = einops.repeat(edge_attr, "e f -> (repeat e) f", repeat=batch_size)
         # Expand edge index correct number of times while adding the proper number to the edge index
@@ -189,13 +202,19 @@ class Encoder(torch.nn.Module):
             out,
             torch.cat(
                 [
-                    self.latent_graph.edge_index + i * torch.max(self.latent_graph.edge_index) + i
+                    self.latent_graph.edge_index
+                    + i * torch.max(self.latent_graph.edge_index)
+                    + i
                     for i in range(batch_size)
                 ],
                 dim=1,
             ),
             self.latent_edge_encoder(
-                einops.repeat(self.latent_graph.edge_attr, "e f -> (repeat e) f", repeat=batch_size)
+                einops.repeat(
+                    self.latent_graph.edge_attr,
+                    "e f -> (repeat e) f",
+                    repeat=batch_size,
+                )
             ),
         )  # New graph
 
@@ -211,10 +230,16 @@ class Encoder(torch.nn.Module):
         edge_targets = []
         edge_attrs = []
         for h3_index in self.base_h3_grid:
-            h_points = h3.k_ring(h3_index, 1) # fetches the indices within the given distance
+            h_points = h3.k_ring(
+                h3_index, 1
+            )  # fetches the indices within the given distance
             for h in h_points:  # Already includes itself
-                distance = h3.point_dist(h3.h3_to_geo(h3_index), h3.h3_to_geo(h), unit="rads")
-                edge_attrs.append([np.sin(distance), np.cos(distance)]) # sine and cosine distance of all the points within the given distance in previous lines.
+                distance = h3.point_dist(
+                    h3.h3_to_geo(h3_index), h3.h3_to_geo(h), unit="rads"
+                )
+                edge_attrs.append(
+                    [np.sin(distance), np.cos(distance)]
+                )  # sine and cosine distance of all the points within the given distance in previous lines.
                 edge_sources.append(self.base_h3_map[h3_index])
                 edge_targets.append(self.base_h3_map[h])
         edge_index = torch.tensor([edge_sources, edge_targets], dtype=torch.long)

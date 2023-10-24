@@ -90,7 +90,7 @@ class XrDataset(Dataset):
 
 
 data = xr.open_dataset(
-    "../graph_weather/data/MERRA2_400.inst3_3d_asm_Nv.20230701_merged.nc",
+    "/users/vgaur/graph_weather_merra/graph_weather/data/MERRA2_400.inst3_3d_asm_Nv.20230701_merged.nc",
     engine="netcdf4",
 )
 # print(data)
@@ -115,8 +115,12 @@ optimizer = optim.AdamW(model.parameters(), lr=0.000001)
 print("Done Setup")
 import time
 
-train_files = glob("../graph_weather/data/train_data/*.nc", recursive=True)
-val_files = glob("../graph_weather/data/val_data/*.nc", recursive=True)
+train_files = glob(
+    "users/vgaur/graph_weather_merra/graph_weather/data/train_data/*.nc", recursive=True
+)
+val_files = glob(
+    "users/vgaur/graph_weather_merra/graph_weather/data/val_data/*.nc", recursive=True
+)
 running_loss, running_val_loss = [], []
 for epoch in range(20):  # loop over the dataset multiple times
     model.train()
@@ -243,7 +247,9 @@ class TestXrDataset(Dataset):
         )
 
 
-for name in glob("../graph_weather/data/test_data/*.nc", recursive=True):
+for name in glob(
+    "users/vgaur/graph_weather_merra/graph_weather/data/test_data/*.nc", recursive=True
+):
     dataset = DataLoader(TestXrDataset(name), batch_size=1)
     fig1, ax1 = plt.subplots(2, 2, figsize=(12, 12))
     fig1.suptitle("Test Image")
@@ -339,7 +345,7 @@ for name in glob("../graph_weather/data/test_data/*.nc", recursive=True):
 #             # zero the parameter gradients
 #             optimizer.zero_grad()
 
-             # forward + backward + optimize
+# forward + backward + optimize
 #             outputs = model(inputs)
 
 #             loss = criterion(outputs, labels)

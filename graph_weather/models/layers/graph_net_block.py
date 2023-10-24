@@ -71,9 +71,7 @@ class MLP(nn.Module):
             The transformed tensor
         """
         if self.use_checkpointing:
-            out = checkpoint(
-                self.model(x), use_reentrant=False
-            )
+            out = checkpoint(self.model(x), use_reentrant=False)
         else:
             out = self.model(x)
         return out
