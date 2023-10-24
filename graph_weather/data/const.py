@@ -2283,7 +2283,7 @@ FORECAST_DIFF_MEANS = {
     "WILT.surface": -8.632069636860251e-08,
 }
 FORECAST_DIFF_STD = pd.read_csv(
-    "/Users/vgaur/graph_weather_merra/graph_weather/data/diff_stds_20231004.txt",
+    "../graph_weather/data/diff_stds_20231004.txt",
     header=None,
     delimiter=":",
 )
