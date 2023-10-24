@@ -18,6 +18,7 @@ from graph_weather import GraphWeatherForecaster
 from graph_weather.data import const
 from graph_weather.models.losses import NormalizedMSELoss
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 class XrDataset(Dataset):
@@ -89,7 +90,7 @@ class XrDataset(Dataset):
 
 
 data = xr.open_dataset(
-    "graph_weather/data/MERRA2_400.inst3_3d_asm_Nv.20230701_merged.nc",
+    "../graph_weather/data/MERRA2_400.inst3_3d_asm_Nv.20230701_merged.nc",
     engine="netcdf4",
 )
 # print(data)
@@ -114,10 +115,10 @@ optimizer = optim.AdamW(model.parameters(), lr=0.000001)
 print("Done Setup")
 import time
 
-train_files = glob("graph_weather/data/train_data/*.nc", recursive=True)
-val_files = glob("graph_weather/data/val_data/*.nc", recursive=True)
+train_files = glob("../graph_weather/data/train_data/*.nc", recursive=True)
+val_files = glob("../graph_weather/data/val_data/*.nc", recursive=True)
 running_loss, running_val_loss = [], []
-for epoch in range(10):  # loop over the dataset multiple times
+for epoch in range(20):  # loop over the dataset multiple times
     model.train()
     start = time.time()
     inter_data = None
@@ -173,7 +174,7 @@ plt.title("model accuracy")
 plt.ylabel("accuracy")
 plt.xlabel("epoch")
 plt.legend(["train", "val"], loc="upper left")
-plt.savefig("openweather_20epochs_merra_batch_2.png")
+plt.savefig("openweather_20epochs_merra_batch_lr_0000001.png")
 plt.show()
 # if epoch % 5 == 0:
 #     assert not np.isnan(running_loss)
@@ -183,34 +184,147 @@ plt.show()
 #         commit_message=f"Add model Epoch={epoch}",
 #     )
 
-for name in glob("graph_weather/data/test_data/*.nc", recursive=True):
-    dataset = DataLoader(XrDataset(name), batch_size=1)
+
+class TestXrDataset(Dataset):
+    def __init__(self, file_name):
+        super().__init__()
+
+        self.data = xr.open_dataset(file_name, engine="netcdf4")
+
+    def __len__(self):
+        return len(self.data.time) - 1
+
+    def __getitem__(self, idx):
+        # start_idx = np.random.randint(0, len(self.data.time) - 1)
+        data = self.data.isel(time=slice(idx, idx + 2))
+        start = data.isel(time=0)
+        end = data.isel(time=1)
+
+        # if inter_data is not None and start != inter_data:
+        #     start = inter_data
+        #     end = data.isel(time=0)
+        # elif start == inter_data:
+        #     start = data.isel(time = 0)
+        #     end = data.isel(time = 1)
+        # else:
+        #     start = data.isel(time=0)
+        #     try:
+        #         end = data.isel(time=1)
+        #     except IndexError:
+        #         inter_data = data.isel(time=0)
+
+        # Stack the data into a large data cube
+        input_data = np.stack(
+            [(start[f"{var}"].values) for var in start.data_vars],
+        )
+        # input_data = np.stack(
+        #     [(start[f"{var}"].values) for var in start.data_vars], axis=-1
+        # )
+        input_data = np.nan_to_num(input_data)
+
+        assert not np.isnan(input_data).any()
+        output_data = np.stack([(end[f"{var}"].values) for var in end.data_vars])
+        # output_data = np.stack(
+        #     [(end[f"{var}"].values) for var in end.data_vars], axis=-1
+        # )
+        output_data = np.nan_to_num(output_data)
+        assert not np.isnan(output_data).any()
+        transform = transforms.Compose([transforms.ToTensor()])
+        # Normalize now
+        return (
+            transform(input_data)
+            .transpose(0, 2)
+            .transpose(1, 2)
+            .reshape(-1, input_data.shape[0]),
+            transform(input_data)
+            .transpose(0, 2)
+            .transpose(1, 2)
+            .reshape(-1, input_data.shape[0]),
+        )
+
+
+for name in glob("../graph_weather/data/test_data/*.nc", recursive=True):
+    dataset = DataLoader(TestXrDataset(name), batch_size=1)
     fig1, ax1 = plt.subplots(2, 2, figsize=(12, 12))
     fig1.suptitle("Test Image")
     for i, data in tqdm(enumerate(dataset), total=len(dataset), leave=False):
         # get the inputs; data is a list of [inputs, labels]
         inputs_test, labels = data[0].to(device), data[1].to(device)
-        ax1[0][0].imshow(torch.reshape(inputs_test, (1, 361, 576, 65))[0, :, :, 27])
+        outputs_test = model(inputs_test)
+        diff_test = labels - outputs_test
+        fig1, ax1 = plt.subplots(2, 2, figsize=(12, 12))
+        sns.heatmap(
+            torch.reshape(inputs, (1, 361, 576, 65))[0, :, :, 27],
+            cbar=True,
+            cmap="Blues",
+            ax=ax1[0][0],
+        )
         ax1[0][0].set_title("Test Input Image")
 
-        ax1[0][1].imshow(torch.reshape(labels, (1, 361, 576, 65))[0, :, :, 27])
+        sns.heatmap(
+            torch.reshape(labels, (1, 361, 576, 65))[0, :, :, 27],
+            cbar=True,
+            cmap="Blues",
+            ax=ax1[0][1],
+        )
         ax1[0][1].set_title("Test Output Image")
-        # zero the parameter gradients
-        # forward + backward + optimize
-        outputs_test = model(inputs_test)
-        ax1[1][0].imshow(
-            torch.reshape(outputs_test, (1, 361, 576, 65)).detach().numpy()[0, :, :, 27]
+
+        sns.heatmap(
+            torch.reshape(outputs_test, (1, 361, 576, 65))
+            .detach()
+            .numpy()[0, :, :, 27],
+            cmap="Blues",
+            cbar=True,
+            ax=ax1[1][0],
         )
         ax1[1][0].set_title("Predicted Image")
 
-        diff_test = labels - outputs_test
-
-        ax1[1][1].imshow(
-            torch.reshape(diff_test, (1, 361, 576, 65)).detach().numpy()[0, :, :, 27]
+        sns.heatmap(
+            torch.reshape(diff_test, (1, 361, 576, 65)).detach().numpy()[0, :, :, 27],
+            cmap="Blues",
+            cbar=True,
+            ax=ax1[1][1],
         )
         ax1[1][1].set_title("Difference in actual output and prediction")
 
-        plt.savefig(f"results_{name.split('/')[-1][:-3]}_{i}_prediction.png")
+        plt.savefig(f"results_{name.split('/')[-1][:-3]}_{i}_T_41.png")
+
+        fig1, ax1 = plt.subplots(2, 2, figsize=(12, 12))
+        sns.heatmap(
+            torch.reshape(inputs, (1, 361, 576, 65))[0, :, :, 44],
+            cbar=True,
+            cmap="Blues",
+            ax=ax1[0][0],
+        )
+        ax1[0][0].set_title("Test Input Image")
+
+        sns.heatmap(
+            torch.reshape(labels, (1, 361, 576, 65))[0, :, :, 44],
+            cbar=True,
+            cmap="Blues",
+            ax=ax1[0][1],
+        )
+        ax1[0][1].set_title("Test Output Image")
+
+        sns.heatmap(
+            torch.reshape(outputs_test, (1, 361, 576, 65))
+            .detach()
+            .numpy()[0, :, :, 44],
+            cmap="Blues",
+            cbar=True,
+            ax=ax1[1][0],
+        )
+        ax1[1][0].set_title("Predicted Image")
+
+        sns.heatmap(
+            torch.reshape(diff_test, (1, 361, 576, 65)).detach().numpy()[0, :, :, 44],
+            cmap="Blues",
+            cbar=True,
+            ax=ax1[1][1],
+        )
+        ax1[1][1].set_title("Difference in actual output and prediction")
+
+        plt.savefig(f"results_{name.split('/')[-1][:-3]}_{i}_U_45.png")
 
 
 # for epoch in range(100):  # loop over the dataset multiple times
@@ -225,7 +339,7 @@ for name in glob("graph_weather/data/test_data/*.nc", recursive=True):
 #             # zero the parameter gradients
 #             optimizer.zero_grad()
 
-#             # forward + backward + optimize
+             # forward + backward + optimize
 #             outputs = model(inputs)
 
 #             loss = criterion(outputs, labels)

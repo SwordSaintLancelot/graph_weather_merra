@@ -13,7 +13,7 @@ class GraphWeatherForecaster(torch.nn.Module, PyTorchModelHubMixin):
     def __init__(
         self,
         lat_lons: list,
-        resolution: int = 3,
+        resolution: int = 4,
         feature_dim: int = 78,
         aux_dim: int = 24,
         output_dim: Optional[int] = None,

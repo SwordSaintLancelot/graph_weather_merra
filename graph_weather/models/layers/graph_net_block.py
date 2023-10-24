@@ -41,8 +41,8 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
         self.use_checkpointing = use_checkpointing
 
-        layers = [nn.Conv2d(in_dim, hidden_dim, kernel_size=3), nn.MaxPool2d(2)]
-        layers += [nn.Linear(hidden_dim, hidden_dim), nn.ReLU()]
+        # layers = [nn.Conv2d(in_dim, hidden_dim, kernel_size=3), nn.MaxPool2d(2)]
+        layers = [nn.Linear(in_dim, hidden_dim), nn.ReLU()]
         for _ in range(hidden_layers - 1):
             layers += [nn.Linear(hidden_dim, hidden_dim), nn.ReLU()]
         layers.append(nn.Linear(hidden_dim, out_dim))
@@ -72,12 +72,10 @@ class MLP(nn.Module):
         """
         if self.use_checkpointing:
             out = checkpoint(
-                self.model, x.reshape(1, 361, 576, 65), use_reentrant=False
+                self.model(x), use_reentrant=False
             )
         else:
-            print(x.shape)
-            out = self.model(x.reshape(1, 361, 576, 65))
-            print(x.shape)
+            out = self.model(x)
         return out
 
 
