@@ -99,6 +99,7 @@ data = xr.open_dataset(
 # which contains the lat lon co-related values, eg. 90*180, 90*179.375 etc.
 lat_lons = np.array(np.meshgrid(data.lat.values, data.lon.values)).T.reshape(-1, 2)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+#device = torch.device("cpu")
 # device = "mps" if torch.backends.mps.is_available() else "cpu"
 # Get the variance of the variables
 feature_variances = []
